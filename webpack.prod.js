@@ -11,25 +11,9 @@ module.exports = merge(common, {
         minimize: true,
         minimizer: [new TerserPlugin({
             terserOptions: {
-                ecma: 5,
-                mangle: {
-                    properties: true
-                },
                 compress: {
-                    drop_console: true,
-                    drop_debugger: true,
-                    pure_funcs: ['console.log'],
-                    passes: 3,
+                    // drop_console: true,
                 },
-                output: {
-                    comments: false,
-                    beautify: false,
-                },
-                keep_classnames: false,
-                keep_fnames: false,
-                module: false,
-                toplevel: false,
-                nameCache: null,
             },
         })],
         splitChunks: {
