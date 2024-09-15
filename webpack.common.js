@@ -6,14 +6,7 @@ module.exports = {
         rules: [
             {
                 test: /\.ts$/,
-                use: {
-                    loader: 'ts-loader',
-                    options: {
-                        compilerOptions: {
-                            target: 'es5',
-                        }
-                    },
-                },
+                use: 'ts-loader',
                 exclude: /node_modules/,
             },
         ],
