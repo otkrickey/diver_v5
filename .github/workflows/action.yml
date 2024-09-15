@@ -42,7 +42,7 @@ jobs:
         if: ${{ inputs.release }}
         run: |
           npm install
-          npm run build
+          npm run build:prod
       - name: Create debug build
         if: ${{ !inputs.release }}
         run: |
