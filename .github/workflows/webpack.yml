@@ -41,7 +41,15 @@ jobs:
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:
-    - name: Download artifact
-      uses: actions/download-artifact@v3
+    - name: Commit built files
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add dist -f
+        git commit -m "Add built files" -a || echo "No changes to commit"
+
+    - name: Push changes
+      uses: ad-m/github-push-action@master
       with:
-        name: dist
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        branch: ${{ github.ref }}
