@@ -140,7 +140,8 @@ class TicketDiveAutomation {
         await new Promise<void>((resolve) => requestAnimationFrame(() => this.goTo(url).then(resolve)));
     }
     protected async isSignedIn(): Promise<string | undefined> {
-        return window.$nuxt.$store.dispatch(DiveActionType.USER__AUTO_SIGN_IN);
+        await window.$nuxt.$store.dispatch(DiveActionType.USER__AUTO_SIGN_IN);
+        return window.$nuxt.$store.getters['user/uid'];
     }
     protected async signin(account: Account) {
         await window.$nuxt.$store.dispatch(DiveActionType.USER__SIGN_IN, account);
@@ -1164,6 +1165,7 @@ class TicketDiveAutomationApply extends TicketDiveAutomation {
         const customizes = JSON.parse(localStorage.getItem('diver.apply.customizes') ?? '{}') as Record<string, string>;
 
         const isSignedIn = await this.isSignedIn();
+        console.log('isSignedIn', isSignedIn);
         if (!isSignedIn) return this.changeTitle('未ログイン', 'ログインが必要です。');
 
         const isEventFavorite = await this.isEventFavorite(ticket.e.id);
