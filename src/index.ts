@@ -288,7 +288,7 @@ class TicketDiveAutomation {
 
     protected createButton(text: string, className: string, callback: () => void): HTMLButtonElement {
         const button = this.createElement<HTMLButtonElement>('button', className, text);
-        this.addDataAttributeRecursively(button, 'v-aff61f2a');
+        this.addDataAttributeRecursively(button, 'v-fe533a4e');
         this.addDataAttributeRecursively(button, 'v-26c60468');
         button.style.setProperty('--color', 'var(--white1)');
         button.style.setProperty('--bg-color', 'var(--blue-gradient)');
@@ -298,12 +298,13 @@ class TicketDiveAutomation {
         button.style.setProperty('--min-width', '18.6rem');
         button.style.setProperty('--padding', '0 3.6rem');
         button.style.setProperty('--pointer-events', 'auto');
+        button.style.setProperty('--border-radius', '9999px');
         button.addEventListener('click', callback);
         return button;
     }
     protected createWideButton(text: string, className: string, callback: () => void): HTMLButtonElement {
         const button = this.createElement<HTMLButtonElement>('button', className, text);
-        this.addDataAttributeRecursively(button, 'v-aff61f2a');
+        this.addDataAttributeRecursively(button, 'v-fe533a4e');
         this.addDataAttributeRecursively(button, 'v-26c60468');
         button.style.setProperty('--color', 'var(--white1)');
         button.style.setProperty('--bg-color', 'var(--blue-gradient)');
@@ -313,6 +314,7 @@ class TicketDiveAutomation {
         button.style.setProperty('--min-width', 'auto');
         button.style.setProperty('--padding', '0');
         button.style.setProperty('--pointer-events', 'auto');
+        button.style.setProperty('--border-radius', '9999px');
         button.addEventListener('click', callback);
         return button;
     }
@@ -438,7 +440,7 @@ class EventPageHandler extends TicketDiveAutomation {
     private render() {
         const wrapper = document.querySelector<HTMLDivElement>('.stages__wrapper') || document.querySelector<HTMLDivElement>('.ticket-info__wrapper');
         if (!wrapper || !this.event) return requestAnimationFrame(() => this.render());
-        if (this.tickets?.some(({ g }) => g.customizeList?.some(({ type }) => type === 'text'))) return window.alert('お目当てにテキスト入力が含まれています。');
+        // if (this.tickets?.some(({ g }) => g.customizeList?.some(({ type }) => type === 'text'))) return window.alert('お目当てにテキスト入力が含まれています。');
         wrapper.innerHTML = '';
         this.event.ticketInfoList.sort((a, b) => a.orderIndex - b.orderIndex).forEach((g) => wrapper.appendChild(this.createTicketInfo(g)));
     }
@@ -478,12 +480,18 @@ class EventPageHandler extends TicketDiveAutomation {
         if (t.g.receptionType === 'lottery' && t.g.lotteryMode) wrapper.appendChild(this.createTicketTypeDetailRow('抽選方式', t.g.lotteryMode === 'auto' ? '自動' : t.g.lotteryMode === 'manual' ? '手動' : t.g.lotteryMode ?? '不明'));
         wrapper.appendChild(this.createElement<HTMLPreElement>('pre', 'mt12 fs12', t.t.detail));
         wrapper.appendChild(this.createTicketTypeDetailNumSelectorRow(t));
-        t.g.customizeList?.forEach((c, i) => { if (c.selectOptions && c.selectOptions.length > 2) wrapper.appendChild(this.createTicketTypeDetailTextSelectorRow(`customize-${i}`, c.label, c.selectOptions)); });
+        t.g.customizeList?.forEach((c, i) => {
+            if (c.type === 'text') wrapper.appendChild(this.createTicketTypeDetailTextInputRow(`customize-${i}`, c.label));
+            else
+                if (c.selectOptions && c.selectOptions.length > 2) wrapper.appendChild(this.createTicketTypeDetailTextSelectorRow(`customize-${i}`, c.label, c.selectOptions));
+        });
         const button = this.createWideButton('予約購入', 'btn mt12', async () => {
+            if (!this.applyCount) return window.$nuxt.$store.commit(DiveMutationType.ERROR__SET_ERROR_MODAL, { title: '予約エラー', detail: '予約申込枚数を選択してください。' });
             saveDateToLocalStorage('diver.apply.ticket', t);
             saveDateToLocalStorage('diver.apply.count', this.applyCount);
             saveDateToLocalStorage('diver.apply.customizes', this.applyCustomizes);
             saveDateToLocalStorage('diver.apply.enabled', true);
+            saveDateToLocalStorage('diver.scratch.tickets', Array.from({ length: this.applyCount }).map((_, i) => this.createDiveTicket(t, undefined, i)));
             const isEventFavorite = await this.isEventFavorite(this.eventId!);
             if (!isEventFavorite) await this.favorite(this.eventId!);
             await this.goTo('/favorite');
@@ -556,6 +564,66 @@ class EventPageHandler extends TicketDiveAutomation {
         row.appendChild(label);
         select.addEventListener('change', () => this.applyCustomizes[id] = select.value);
         return row;
+    }
+    private createTicketTypeDetailTextInputRow(id: string, key: string): HTMLDivElement {
+        const row = this.createElement<HTMLDivElement>('div', 'mt12 row both-ends');
+        const keyWrapper = this.createElement<HTMLDivElement>('div');
+        const k = this.createElement<HTMLParagraphElement>('p', 'fw6 fs12', key);
+        const label = this.createElement<HTMLLabelElement>('label');
+        label.htmlFor = id;
+        const input = this.createElement<HTMLInputElement>('input', 'input');
+        input.id = id;
+        input.setAttribute('type', 'text');
+        label.appendChild(input);
+        keyWrapper.appendChild(k);
+        row.appendChild(keyWrapper);
+        row.appendChild(label);
+        input.addEventListener('change', () => this.applyCustomizes[id] = input.value);
+        this.addDataAttributeRecursively(row, 'v-de164680');
+        return row;
+    }
+
+    private initReferenceNumber: number | null = null;
+    private set referenceNumber(v: number) {
+        localStorage.setItem('diver.scratch.referenceNumber', v.toString());
+    }
+    private get referenceNumber(): number {
+        const n = localStorage.getItem('diver.scratch.referenceNumber');
+        if (!n) localStorage.setItem('diver.scratch.referenceNumber', '1');
+        return n ? Number(n) : this.initReferenceNumber ?? 1;
+    }
+
+    private createDiveTicket(t: DiverTicket, original?: DiveTicket, i: number = 0): DiveTicket {
+        const diveTicket: DiveTicket = {
+            applicationId: 'diver.scratch.applicationId',
+            createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+            enterAt: undefined,
+            entranceStatus: 'ready',
+            event: t.e,
+            eventId: t.e.id,
+            isUntransferable: t.g.isUntransferable,
+            method: 'button',
+            participantUid: 'diver.scratch.participantUid',
+            purchaserUid: 'diver.scratch.purchaserUid',
+            qrCode: 'asdgadsfhguipahupewihuioebaiufgpbaiposdbgpiusdabpiugbp',
+            referenceNumber: t.t.prefix ? `${t.t.prefix}-${this.referenceNumber + i}` : (this.referenceNumber + i).toString(),
+            stage: t.e.stages[0],
+            stageId: t.e.stages[0].id,
+            startStage: { nanoseconds: 0, seconds: t.e.stages[0].startStage.getTime() / 1000 },
+            ticketId: 'diver.scratch.ticketId',
+            ticketInfo: t.g,
+            ticketInfoId: t.g.id,
+            ticketType: t.t,
+            ticketTypeId: t.t.id,
+        };
+        return Object.assign(diveTicket, original ? {
+            applicationId: original.applicationId,
+            method: original.method,
+            participantUid: original.participantUid,
+            purchaserUid: original.purchaserUid,
+            stageId: original.stageId,
+            ticketId: original.ticketId,
+        } : {});
     }
 }
 
@@ -677,13 +745,20 @@ class TicketPageHandler extends TicketDiveAutomation {
         this.renderTicketDetailBottom();
     }
 
-    private renderTicketDetailBottom() {
+    private renderTicketDetailBottom(entered: boolean = false) {
         const originalBottom = document.querySelector('.ticket-detail__bottom');
         if (!originalBottom) return requestAnimationFrame(() => this.render());
-        originalBottom.replaceWith(this.createTicketDetailBottom());
+        originalBottom.replaceWith(this.createTicketDetailBottom_Enter());
     }
 
-    private createTicketDetailBottom(): HTMLDivElement {
+    private createTicketDetailBottom_Entered(): HTMLDivElement {
+        const bottom = this.createElement<HTMLDivElement>('div', 'ticket-detail__bottom');
+        bottom.appendChild(this.createElement<HTMLParagraphElement>('p', 'distributed-or-entered', '入場済みのチケットです'));
+        this.addDataAttributeRecursively(bottom, 'v-443e3254');
+        return bottom;
+    }
+
+    private createTicketDetailBottom_Enter(): HTMLDivElement {
         const bottom = this.createElement<HTMLDivElement>('div', 'ticket-detail__bottom');
 
         const returnButtonWrapper = this.createElement<HTMLDivElement>('div', 'col pointer');
@@ -702,13 +777,14 @@ class TicketPageHandler extends TicketDiveAutomation {
         enterButtonWrapper.style.setProperty('--min-width', 'auto');
         enterButtonWrapper.style.setProperty('--padding', '0 0');
         enterButtonWrapper.style.setProperty('--pointer-events', 'auto');
+        enterButtonWrapper.style.setProperty('--border-radius', '9999px');
         const enterButtonTextWrapper = this.createElement<HTMLDivElement>('div', 'enter-btn-text col');
         const enterButtonMainText = this.createElement<HTMLParagraphElement>('p', undefined, '入場する');
         const enterButtonSubText = this.createElement<HTMLParagraphElement>('p', undefined, '（係員以外操作無効）');
         enterButtonWrapper.appendChild(enterButtonTextWrapper);
         enterButtonTextWrapper.appendChild(enterButtonMainText);
         enterButtonTextWrapper.appendChild(enterButtonSubText);
-        this.addDataAttributeRecursively(enterButtonWrapper, 'v-aff61f2a');
+        this.addDataAttributeRecursively(enterButtonWrapper, 'v-fe533a4e');
 
         bottom.appendChild(returnButtonWrapper);
         bottom.appendChild(enterButtonWrapper);
@@ -772,7 +848,9 @@ class TicketPageHandler extends TicketDiveAutomation {
         this.store.commit(DiveMutationType.VIEW__SET_LOADING, true);
         setTimeout(() => {
             this.store.commit(DiveMutationType.VIEW__SET_LOADING, false);
-
+            const index = this.getCurrentDisplayTicket();
+            const wrapper = document.querySelectorAll<HTMLDivElement>('.ticket-card__upper')[index]!;
+            wrapper.insertAdjacentElement('afterbegin', this.createEnteredStamp());
         }, 1000);
     }
 
@@ -781,7 +859,7 @@ class TicketPageHandler extends TicketDiveAutomation {
         stamp.appendChild(this.createElement<HTMLParagraphElement>('p', 'entered-at', '入場済'));
         stamp.appendChild(this.createElement<HTMLParagraphElement>('p', 'entered-at rotated', '入場済'));
         const outerCircle = this.createElement<HTMLDivElement>('div', 'outer-circle');
-        const enterTime = '19:00';
+        const enterTime = this.dateToTimeStr(new Date());
         outerCircle.appendChild(this.createElement<HTMLParagraphElement>('p', 'fs36', enterTime));
         stamp.appendChild(outerCircle);
         stamp.appendChild(this.createElement<HTMLParagraphElement>('p', 'circle-big'));
@@ -791,6 +869,13 @@ class TicketPageHandler extends TicketDiveAutomation {
         this.addDataAttributeRecursively(stamp, 'v-443e3254');
 
         return stamp;
+    }
+
+    private getCurrentDisplayTicket(): number {
+        const currentDisplayTicket = document.querySelector('.swiper-slide-active');
+        if (!currentDisplayTicket) return 0;
+        const ticketIndex = Array.from(document.querySelectorAll('.swiper-slide')).indexOf(currentDisplayTicket);
+        return ticketIndex;
     }
 
     // private renderTickets() {
